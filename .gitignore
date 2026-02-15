@@ -38,3 +38,14 @@ dist/
 # Blockchain
 contracts/*.json
 !contracts/*_ABI.json
+
+# SevaSetu Debug/Test Scripts
+test_*.py
+verify_*.py
+debug_*.py
+self_diagnostic.py
+*.log
+*.txt
+*.ps1
+!start_services.ps1
+!setup.ps1

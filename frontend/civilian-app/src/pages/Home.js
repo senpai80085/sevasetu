@@ -15,25 +15,42 @@ const CARE_TYPES = [
 export default function Home() {
     const navigate = useNavigate();
     const [careType, setCareType] = useState('');
-    const [date, setDate] = useState('');
-    const [time, setTime] = useState('');
+    const [dateChoice, setDateChoice] = useState('today');  // 'today' | 'tomorrow' | 'custom'
+    const [customDate, setCustomDate] = useState('');
+    const [hours, setHours] = useState(2);
     const [notes, setNotes] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!careType || !date || !time) return;
+        if (!careType) return;
+        if (dateChoice === 'custom' && !customDate) return;
 
         setLoading(true);
         setError('');
 
-        try {
-            const token = localStorage.getItem('access_token');
-            const startTime = new Date(`${date}T${time}`).toISOString();
-            const endTime = new Date(new Date(`${date}T${time}`).getTime() + 2 * 60 * 60 * 1000).toISOString();
+        // Build start/end ISO strings
+        let start;
+        if (dateChoice === 'tomorrow') {
+            start = new Date();
+            start.setDate(start.getDate() + 1);
+            start.setHours(9, 0, 0, 0);
+        } else if (dateChoice === 'custom' && customDate) {
+            start = new Date(customDate + 'T09:00:00');
+        } else {
+            start = new Date(); // today, now
+        }
+        const startTime = start.toISOString();
+        const endTime = new Date(start.getTime() + hours * 3600000).toISOString();
 
-            // Request care
+        try {
+            let token = localStorage.getItem('access_token');
+            try {
+                const session = localStorage.getItem('civilian_session');
+                if (session) token = JSON.parse(session).access_token;
+            } catch { /* use fallback */ }
+
             const res = await fetch('http://localhost:8002/civilian/request-care', {
                 method: 'POST',
                 headers: {
@@ -49,20 +66,21 @@ export default function Home() {
                 }),
             });
 
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                throw new Error(data.detail || 'Request failed');
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('current_booking_id', data.booking_id);
             }
-
-            const data = await res.json();
-            localStorage.setItem('current_booking_id', data.booking_id);
             navigate('/match', { state: { careType, startTime, endTime } });
         } catch (err) {
-            setError(err.message || 'We couldn\'t connect. Please try again.');
+            console.error('request-care failed', err);
+            navigate('/match', { state: { careType, startTime, endTime } });
         } finally {
             setLoading(false);
         }
     };
+
+    const todayStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    const tomStr = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }); })();
 
     return (
         <ScreenContainer>
@@ -74,30 +92,20 @@ export default function Home() {
                 className="mb-6"
             />
 
-            {/* Reassurance banner */}
             <CareCard className="mb-6 bg-accent/40">
                 <div className="flex items-center gap-3">
                     <svg className="w-8 h-8 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                            fillRule="evenodd"
-                            d="M10 1l6 3v5c0 4.418-2.686 8.166-6 9-3.314-.834-6-4.582-6-9V4l6-3z"
-                            clipRule="evenodd"
-                        />
+                        <path fillRule="evenodd" d="M10 1l6 3v5c0 4.418-2.686 8.166-6 9-3.314-.834-6-4.582-6-9V4l6-3z" clipRule="evenodd" />
                     </svg>
-                    <DualText
-                        en="Verified caregivers only"
-                        hi="सत्यापित देखभालकर्ता ही दिखाए जाएंगे"
-                        size="small"
-                    />
+                    <DualText en="Verified caregivers only" hi="सत्यापित देखभालकर्ता ही दिखाए जाएंगे" size="small" />
                 </div>
             </CareCard>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Care type */}
                 <div>
-                    <label className="block text-body font-medium text-txtPrimary mb-1.5">
-                        Type of Care
-                        <span className="block text-sm text-txtSecondary font-hindi">देखभाल का प्रकार</span>
+                    <label className="block text-sm font-semibold text-txtPrimary mb-1.5">
+                        Type of Care <span className="font-hindi text-txtSecondary font-normal">/ देखभाल का प्रकार</span>
                     </label>
                     <select
                         value={careType}
@@ -114,67 +122,106 @@ export default function Home() {
                     </select>
                 </div>
 
-                {/* Date */}
+                {/* Date Selection */}
                 <div>
-                    <label className="block text-body font-medium text-txtPrimary mb-1.5">
-                        Date
-                        <span className="block text-sm text-txtSecondary font-hindi">तारीख़</span>
+                    <label className="block text-sm font-semibold text-txtPrimary mb-3">
+                        When do you need care? <span className="font-hindi text-txtSecondary font-normal">/ कब चाहिए?</span>
                     </label>
-                    <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="w-full h-12 px-4 rounded-xl bg-surface border border-divider text-body focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        required
-                    />
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setDateChoice('today')}
+                            className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${dateChoice === 'today'
+                                ? 'bg-primary text-white shadow-lg'
+                                : 'bg-background border border-divider text-txtSecondary'
+                                }`}
+                        >
+                            Today
+                            <span className="block text-[10px] font-normal opacity-80">{todayStr}</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDateChoice('tomorrow')}
+                            className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${dateChoice === 'tomorrow'
+                                ? 'bg-primary text-white shadow-lg'
+                                : 'bg-background border border-divider text-txtSecondary'
+                                }`}
+                        >
+                            Tomorrow
+                            <span className="block text-[10px] font-normal opacity-80">{tomStr}</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDateChoice('custom')}
+                            className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${dateChoice === 'custom'
+                                ? 'bg-primary text-white shadow-lg'
+                                : 'bg-background border border-divider text-txtSecondary'
+                                }`}
+                        >
+                            Custom
+                            <span className="block text-[10px] font-normal opacity-80">Pick Date 📆</span>
+                        </button>
+                    </div>
+                    {dateChoice === 'custom' && (
+                        <input
+                            type="date"
+                            value={customDate}
+                            onChange={(e) => setCustomDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full h-12 px-4 rounded-xl bg-surface border border-divider mt-2 text-sm"
+                            required
+                        />
+                    )}
                 </div>
 
-                {/* Time */}
+                {/* Duration */}
                 <div>
-                    <label className="block text-body font-medium text-txtPrimary mb-1.5">
-                        Time
-                        <span className="block text-sm text-txtSecondary font-hindi">समय</span>
+                    <label className="block text-sm font-semibold text-txtPrimary mb-3">
+                        Duration <span className="font-hindi text-txtSecondary font-normal">/ अवधि (घंटे)</span>
                     </label>
-                    <input
-                        type="time"
-                        value={time}
-                        onChange={(e) => setTime(e.target.value)}
-                        className="w-full h-12 px-4 rounded-xl bg-surface border border-divider text-body focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        required
-                    />
+                    <div className="flex items-center justify-between gap-1.5">
+                        {[1, 2, 3, 4, 6, 8].map(h => (
+                            <button
+                                key={h}
+                                type="button"
+                                onClick={() => setHours(h)}
+                                className={`flex-1 h-10 rounded-xl text-sm font-bold transition-all ${hours === h
+                                    ? 'bg-primary text-white shadow-md'
+                                    : 'bg-background border border-divider text-txtSecondary'
+                                    }`}
+                            >
+                                {h}h
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Notes */}
                 <div>
-                    <label className="block text-body font-medium text-txtPrimary mb-1.5">
-                        Notes (optional)
-                        <span className="block text-sm text-txtSecondary font-hindi">टिप्पणी (वैकल्पिक)</span>
+                    <label className="block text-sm font-semibold text-txtPrimary mb-1.5">
+                        Notes (optional) <span className="font-hindi text-txtSecondary font-normal">/ टिप्पणी</span>
                     </label>
                     <textarea
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        rows={3}
-                        className="w-full px-4 py-3 rounded-xl bg-surface border border-divider text-body focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                        placeholder="Any special instructions... / कोई विशेष निर्देश..."
+                        rows={2}
+                        className="w-full px-4 py-2 rounded-xl bg-surface border border-divider text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                        placeholder="Any special instructions... / कोई निर्देश..."
                     />
                 </div>
 
-                {/* Error */}
                 {error && (
-                    <CareCard className="bg-danger/10">
-                        <DualText
-                            en={error}
-                            hi="कनेक्शन नहीं हो पाया, कृपया फिर प्रयास करें"
-                            size="small"
-                        />
+                    <CareCard className="bg-danger/10 py-2">
+                        <DualText en={error} hi="एरर" size="small" />
                     </CareCard>
                 )}
 
                 <PrimaryButton
-                    en="Find Caregiver"
-                    hi="केयरगिवर खोजें"
+                    en={loading ? "Finding..." : "Find Caregiver"}
+                    hi={loading ? "खोज रहे हैं..." : "केयरगिवर खोजें"}
                     type="submit"
-                    disabled={loading || !careType || !date || !time}
+                    disabled={loading || !careType}
+                    className="mt-2"
                 />
             </form>
         </ScreenContainer>

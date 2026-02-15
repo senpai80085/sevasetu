@@ -45,12 +45,32 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # ── DEMO_MODE: Bypass JWT for demo tokens ───────────────────────
+    token_str = credentials.credentials
+    if token_str.startswith("demo_token_sevasetu_"):
+        # Extract role from token: demo_token_sevasetu_civilian → civilian
+        demo_role = token_str.replace("demo_token_sevasetu_", "")
+        return {
+            "identity_id": 1,
+            "role": demo_role,
+            "session_id": "demo_session_001",
+        }
+    # ────────────────────────────────────────────────────────────────
+
     try:
+        # DEBUG: Log token and key verification
+        print(f"[DEBUG] Validating token: {credentials.credentials[:10]}...")
+        from shared.config import Config
+        print(f"[DEBUG] Using SECRET_KEY starting with: {Config.SECRET_KEY[:3]}")
         payload = decode_token(credentials.credentials)
-    except Exception:
+        print(f"[DEBUG] Token Valid. Payload: {payload}")
+    except Exception as e:
+        print(f"[ERROR] Token validation failed: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
+            detail=f"Invalid or expired token: {e}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

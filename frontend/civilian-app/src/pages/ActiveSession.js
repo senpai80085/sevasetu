@@ -5,16 +5,63 @@ import CareCard from '../components/CareCard';
 import DualText from '../components/DualText';
 import PrimaryButton from '../components/PrimaryButton';
 
+const CIVILIAN_API = 'http://localhost:8002';
+
+function getAuthToken() {
+    try {
+        const session = localStorage.getItem('civilian_session');
+        if (session) return JSON.parse(session).access_token;
+    } catch { /* ignore */ }
+    return localStorage.getItem('access_token') || '';
+}
+
 export default function ActiveSession() {
     const navigate = useNavigate();
     const [seconds, setSeconds] = useState(0);
+    const [bookingStatus, setBookingStatus] = useState('confirmed'); // start with confirmed
     const caregiverName = localStorage.getItem('current_caregiver_name') || 'Caregiver';
     const bookingId = localStorage.getItem('current_booking_id');
 
+    // ── RATING: Session completed, ask for review ──────────────────
+    const [rating, setRating] = useState(0);
+    const [review, setReview] = useState('');
+    const [caregiverId, setCaregiverId] = useState(null);
+
+    // Update poll to get caregiver_id
     useEffect(() => {
-        const interval = setInterval(() => setSeconds((s) => s + 1), 1000);
+        if (!bookingId) return;
+        if (bookingStatus === 'rated') return;
+
+        const poll = async () => {
+            try {
+                const token = getAuthToken();
+                const res = await fetch(`${CIVILIAN_API}/civilian/booking/status/${bookingId}`, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setBookingStatus(data.status);
+                    if (data.caregiver_id) setCaregiverId(data.caregiver_id);
+                    if (data.caregiver_name) {
+                        localStorage.setItem('current_caregiver_name', data.caregiver_name);
+                    }
+                }
+            } catch (err) {
+                console.error('Poll failed:', err);
+            }
+        };
+
+        poll();
+        const interval = setInterval(poll, 3000);
         return () => clearInterval(interval);
-    }, []);
+    }, [bookingId, bookingStatus]);
+
+    // ── Session timer — only runs when in_progress ─────────────
+    useEffect(() => {
+        if (bookingStatus !== 'in_progress') return;
+        const interval = setInterval(() => setSeconds(s => s + 1), 1000);
+        return () => clearInterval(interval);
+    }, [bookingStatus]);
 
     const formatTime = (s) => {
         const h = Math.floor(s / 3600);
@@ -23,11 +70,98 @@ export default function ActiveSession() {
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
     };
 
+    const handleSubmitRating = async () => {
+        if (!rating) return alert('Please select a star rating');
+        try {
+            const token = getAuthToken();
+            await fetch(`${CIVILIAN_API}/civilian/submit-rating`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    caregiver_id: caregiverId,
+                    rating: rating,
+                    review_text: review,
+                }),
+            });
+            setBookingStatus('rated');
+            // Clean up
+            localStorage.removeItem('current_booking_id');
+            localStorage.removeItem('current_caregiver_name');
+        } catch (err) {
+            console.error('Rating failed:', err);
+            alert('Failed to submit rating');
+        }
+    };
+
+    if (bookingStatus === 'completed') {
+        return (
+            <ScreenContainer>
+                <DualText en="Session Complete" hi="सत्र पूरा हुआ" size="heading" className="mb-6" />
+                <CareCard className="text-center py-8">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <DualText en="Care session finished" hi="देखभाल सत्र समाप्त हो गया" className="mb-6" />
+
+                    <div className="mb-6">
+                        <p className="text-sm text-txtSecondary mb-2 font-medium">Rate your experience</p>
+                        <div className="flex justify-center gap-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    onClick={() => setRating(star)}
+                                    className={`w-10 h-10 text-2xl transition-colors ${star <= rating ? 'text-yellow-400 scale-110' : 'text-gray-300 hover:text-yellow-200'
+                                        }`}
+                                >
+                                    ★
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <textarea
+                        className="w-full p-3 border border-divider rounded-xl mb-4 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                        rows="3"
+                        placeholder="Write a review... (optional)"
+                        value={review}
+                        onChange={(e) => setReview(e.target.value)}
+                    />
+
+                    <PrimaryButton
+                        en="Submit Review"
+                        hi="समीक्षा जमा करें"
+                        onClick={handleSubmitRating}
+                    />
+                </CareCard>
+            </ScreenContainer>
+        );
+    }
+
+    if (bookingStatus === 'rated' || bookingStatus === 'closed') {
+        return (
+            <ScreenContainer>
+                <div className="text-center py-20 px-4">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center">
+                        <span className="text-4xl">🙏</span>
+                    </div>
+                    <DualText en="Thank You!" hi="धन्यवाद!" size="heading" className="mb-2" />
+                    <p className="text-txtSecondary mb-8">Your feedback helps us improve.</p>
+                    <PrimaryButton en="Back Home" hi="घर वापस" onClick={() => navigate('/')} />
+                </div>
+            </ScreenContainer>
+        );
+    }
+
+    // ── IN_PROGRESS: Live session timer ────────────────────────
     return (
         <ScreenContainer>
             <DualText en="Active Care Session" hi="सक्रिय देखभाल सत्र" size="heading" className="mb-6" />
 
-            {/* Status card */}
             <CareCard className="mb-6">
                 <div className="text-center">
                     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -73,7 +207,7 @@ export default function ActiveSession() {
                 className="mb-4"
             />
 
-            {/* Emergency button — fixed at bottom */}
+            {/* Emergency button */}
             <div className="fixed bottom-24 left-0 right-0 px-4">
                 <div className="max-w-app mx-auto">
                     <PrimaryButton

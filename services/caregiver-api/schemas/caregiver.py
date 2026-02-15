@@ -13,7 +13,7 @@ from datetime import datetime
 class CaregiverRegisterRequest(BaseModel):
     """
     Request schema for caregiver registration.
-    
+
     Attributes:
         hashed_identity: Privacy-preserving identity hash
         name: Caregiver's display name
@@ -26,7 +26,7 @@ class CaregiverRegisterRequest(BaseModel):
     gender: Optional[str] = Field(None, max_length=50)
     skills: List[str] = Field(..., min_items=1)
     experience_years: int = Field(..., ge=0)
-    
+
     @validator('skills')
     def validate_skills(cls, v):
         """Ensure all skills are non-empty strings."""
@@ -35,10 +35,18 @@ class CaregiverRegisterRequest(BaseModel):
         return [skill.strip().lower() for skill in v]
 
 
+class CaregiverUpdateRequest(BaseModel):
+    """Request schema for updating caregiver profile."""
+    name: Optional[str] = None
+    gender: Optional[str] = None
+    skills: Optional[List[str]] = None
+    experience_years: Optional[int] = None
+
+
 class CaregiverResponse(BaseModel):
     """
     Response schema for caregiver data.
-    
+
     Attributes:
         id: Caregiver ID
         name: Caregiver's display name
@@ -57,7 +65,7 @@ class CaregiverResponse(BaseModel):
     rating_average: float
     trust_score: float
     verified: bool
-    
+
     class Config:
         """Pydantic configuration."""
         from_attributes = True
@@ -66,7 +74,7 @@ class CaregiverResponse(BaseModel):
 class AvailabilityRequest(BaseModel):
     """
     Request schema for updating caregiver availability.
-    
+
     Attributes:
         caregiver_id: Caregiver ID
         available: Whether caregiver is currently available
@@ -78,7 +86,7 @@ class AvailabilityRequest(BaseModel):
 class JobResponse(BaseModel):
     """
     Response schema for job/booking information.
-    
+
     Attributes:
         id: Booking ID
         civilian_id: Client/civilian ID
@@ -93,7 +101,12 @@ class JobResponse(BaseModel):
     start_time: datetime
     end_time: datetime
     status: str
-    
+
     class Config:
         """Pydantic configuration."""
         from_attributes = True
+
+
+class BookingStatusUpdateRequest(BaseModel):
+    """Request schema for updating booking status (accept/reject)."""
+    status: str

@@ -16,13 +16,15 @@ from fastapi import HTTPException, status
 _TRANSITIONS: dict[str, set[str]] = {
     "pending":     {"matched", "cancelled"},
     "matched":     {"confirmed", "cancelled"},
-    "confirmed":   {"in_progress", "cancelled"},
+    "confirmed":   {"accepted", "rejected", "cancelled"},  # "accepted" = Arriving
+    "accepted":    {"in_progress", "cancelled"},           # "in_progress" = Started
     "in_progress": {"completed", "paused", "cancelled"},
     "paused":      {"in_progress", "cancelled"},
     "completed":   {"rated", "cancelled"},
     "rated":       {"closed"},
-    "closed":      set(),        # terminal
-    "cancelled":   set(),        # terminal
+    "rejected":    {"matched", "cancelled"},     # Allow re-matching if rejected? Or just terminal?
+    "closed":      set(),
+    "cancelled":   set(),
 }
 
 

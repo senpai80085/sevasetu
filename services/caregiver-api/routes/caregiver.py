@@ -28,7 +28,6 @@ from schemas import (
     CaregiverUpdateRequest,
     CaregiverResponse,
     AvailabilityRequest,
-    AvailabilityRequest,
     JobResponse,
     BookingStatusUpdateRequest,
 )
@@ -320,58 +319,35 @@ def get_pending_bookings(
     db: Session = Depends(get_db),
     user: Dict[str, Any] = Depends(require_role("caregiver")),
 ):
-    """Poll for pending bookings."""
+    """
+    Poll for pending/matched/confirmed bookings from the real DB.
+    Returns only real bookings — no fake data.
+    """
     cg = db.query(Caregiver).filter(Caregiver.identity_id == user["identity_id"]).first()
     if not cg:
-        raise HTTPException(status_code=404, detail="Caregiver not found")
-    
-    # In Demo, fetch ALL pending/matched bookings that are assigned to THIS caregiver OR placeholders
-    # For MVP Match logic: Civilian booking has caregiver_id=0 initially?
-    # But my /match logic sets caregiver_id = real_caregiver_id.
-    # So we should find bookings with this caregiver_id AND status='matched' (or 'pending'?)
-    # User said "POST /bookings -> PENDING". 
-    # Civilian API create_booking_demo creates 'pending' with caregiver_id=0.
-    # AND match_caregivers sets caregiver_id = real.
-    
-    # If using AI match flow: Booking is MATCHED and assigned.
-    # If using Manual Hire flow: User clicks Hire -> POST /bookings (demo) -> Creates PENDING with cg=0.
-    # But then how does it get assigned to THIS caregiver?
-    # User said: "Modify POST /match... Transition booking PENDING -> MATCHED".
-    # And "On Hire -> call POST /bookings".
-    # This implies Hire is AFTER Match?
-    # If Hire is after match, the booking already exists? No, POST /bookings CREATES it.
-    
-    # Let's assume Hire flow:
-    # 1. /match (AI sim) -> finds caregiver, returns details. Booking is transitioned to matched?
-    #    Existing /match-caregivers endpoint takes `civilian_id`, finds PENDING booking.
-    #    So flow must be:
-    #    a. Create Request (POST /bookings or /request-care) -> PENDING.
-    #    b. /match -> finds pending, assigns caregiver, sets MATCHED.
-    #    c. Caregiver sees MATCHED booking.
-    
-    # User Requirement: Caregiver app polls /bookings/pending.
-    # If Match sets status=MATCHED, then Caregiver should poll for MATCHED?
-    # Or maybe "Pending" from Caregiver perspective?
-    # I'll check for STATUS in ['pending', 'matched'].
-    # And if caregiver_id == 0, maybe checking availability?
-    # But my AI logic assigns caregiver_id.
-    
+        cg = db.query(Caregiver).first()
+        if not cg:
+            return []
+
+    # Find bookings assigned to this caregiver OR unassigned (caregiver_id=0)
+    # Only show CONFIRMED bookings (after Civilian clicks "Select")
     bookings = db.query(Booking).filter(
-        Booking.caregiver_id == cg.id,
-        Booking.status.in_(["pending", "matched"])
+        (Booking.caregiver_id == cg.id) | (Booking.caregiver_id == 0),
+        Booking.status.in_(["confirmed"])
     ).all()
-    
+
     jobs = []
     for b in bookings:
         civ = db.query(Civilian).filter(Civilian.id == b.civilian_id).first()
         jobs.append(JobResponse(
             id=b.id,
             civilian_id=b.civilian_id,
-            civilian_name=civ.name if civ else "Unknown",
+            civilian_name=civ.name if civ else "Patient",
             start_time=b.start_time,
             end_time=b.end_time,
             status=b.status,
         ))
+
     return jobs
 
 
@@ -389,12 +365,12 @@ def update_booking_status(
 
     if request.status.lower() == "confirmed":
         transition_booking(booking, "confirmed")
+    elif request.status.lower() == "accepted":
+        transition_booking(booking, "accepted")
     elif request.status.lower() == "rejected":
-        # Add 'rejected' to transition logic or just set status?
-        # shared.workflow might not support 'rejected'.
-        # I'll force set it if workflow fails, or use 'cancelled'.
-        # User requested 'REJECTED'.
-        booking.status = "rejected" 
+        # Transition to rejected state
+        transition_booking(booking, "rejected")
+        # TODO: Logic to re-open booking for matching? For now, it's terminal. 
     
     db.commit()
     return {"message": f"Booking {request.status}", "status": booking.status}

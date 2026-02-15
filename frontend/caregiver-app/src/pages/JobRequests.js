@@ -79,7 +79,7 @@ export default function JobRequests() {
                                         Reject
                                     </button>
                                     <button
-                                        onClick={() => handleAction(job.id, 'confirmed')}
+                                        onClick={() => handleAction(job.id, 'accepted')}
                                         className="flex-1 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30"
                                     >
                                         Accept Job

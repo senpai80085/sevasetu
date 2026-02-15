@@ -9,7 +9,9 @@ from .civilian import (
     ConfirmBookingRequest,
     BookingResponse,
     SubmitRatingRequest,
-    RatingResponse
+    RatingResponse,
+    CivilianUpdateRequest,
+    SafetySessionResponse,
 )
 
 __all__ = [
@@ -20,4 +22,6 @@ __all__ = [
     "BookingResponse",
     "SubmitRatingRequest",
     "RatingResponse",
+    "CivilianUpdateRequest",
+    "SafetySessionResponse",
 ]

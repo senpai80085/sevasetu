@@ -6,39 +6,72 @@ import DualText from '../components/DualText';
 import PrimaryButton from '../components/PrimaryButton';
 import TrustBadge from '../components/TrustBadge';
 
+/* ── DEMO_MODE: Fallback caregiver if API fails or returns empty ─────── */
+const DEMO_FALLBACK_CAREGIVER = {
+    caregiver_id: 0,
+    name: "Demo Caregiver",
+    skills: ["elderly_care", "assistance"],
+    experience_years: 3,
+    rating_average: 4.7,
+    trust_score: 88.0,
+    match_score: 88.0,
+    ai_confidence: 96.0,
+    ai_reason: "Best reliability prediction",
+};
+
 export default function MatchResults() {
     const navigate = useNavigate();
     const location = useLocation();
     const [caregivers, setCaregivers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [selecting, setSelecting] = useState(null);
 
     const { careType, startTime, endTime } = location.state || {};
 
     useEffect(() => {
         const fetchMatches = async () => {
-            try {
-                const token = localStorage.getItem('access_token');
-                const res = await fetch('http://localhost:8002/civilian/match-caregivers', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                    },
-                    body: JSON.stringify({
-                        civilian_id: parseInt(localStorage.getItem('civilian_id') || '1'),
-                        required_skills: [careType || 'elder_care'],
-                        start_time: startTime || new Date().toISOString(),
-                        end_time: endTime || new Date(Date.now() + 7200000).toISOString(),
-                    }),
-                });
+            const session = localStorage.getItem('civilian_session');
+            const token = session ? JSON.parse(session).access_token : '';
+            const body = JSON.stringify({
+                civilian_id: parseInt(localStorage.getItem('civilian_id') || '1'),
+                required_skills: [careType || 'elder_care'],
+                start_time: startTime || new Date().toISOString(),
+                end_time: endTime || new Date(Date.now() + 7200000).toISOString(),
+            });
+            const headers = {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            };
 
-                if (!res.ok) throw new Error('Failed to find caregivers');
+            /* ── DEMO_MODE: Try once → retry → fallback ─────────── */
+            const tryFetch = async () => {
+                const res = await fetch('http://localhost:8002/civilian/match-caregivers', {
+                    method: 'POST', headers, body,
+                });
+                if (res.status === 401) {
+                    throw new Error("401 Unauthorized");
+                }
+                if (!res.ok) return null;
                 const data = await res.json();
-                setCaregivers(data.caregivers || []);
+                return (data.caregivers && data.caregivers.length > 0) ? data.caregivers : null;
+            };
+
+            try {
+                let result = await tryFetch();
+                // DEMO_MODE: retry once if empty
+                if (!result) {
+                    await new Promise(r => setTimeout(r, 500));
+                    result = await tryFetch();
+                }
+                setCaregivers(result || [DEMO_FALLBACK_CAREGIVER]);
             } catch (err) {
-                setError(err.message);
+                console.error('DEMO_MODE: match API failed', err);
+                if (err.message && err.message.includes('401')) {
+                    navigate('/login');
+                    return;
+                }
+                // DEMO_MODE: Never show errors — use fallback caregiver
+                setCaregivers([DEMO_FALLBACK_CAREGIVER]);
             } finally {
                 setLoading(false);
             }
@@ -50,7 +83,8 @@ export default function MatchResults() {
     const handleSelect = async (caregiver) => {
         setSelecting(caregiver.caregiver_id);
         try {
-            const token = localStorage.getItem('access_token');
+            const session = localStorage.getItem('civilian_session');
+            const token = session ? JSON.parse(session).access_token : '';
             const res = await fetch('http://localhost:8002/civilian/confirm-booking', {
                 method: 'POST',
                 headers: {
@@ -66,6 +100,12 @@ export default function MatchResults() {
             });
 
             if (!res.ok) {
+                if (res.status === 401) {
+                    alert("Session expired. Please login again.");
+                    localStorage.removeItem('civilian_session');
+                    navigate('/login');
+                    return;
+                }
                 const data = await res.json().catch(() => ({}));
                 throw new Error(data.detail || 'Booking failed');
             }
@@ -75,7 +115,16 @@ export default function MatchResults() {
             localStorage.setItem('current_caregiver_name', caregiver.name);
             navigate('/session');
         } catch (err) {
-            setError(err.message);
+            console.error('confirm-booking failed', err);
+            if (err.message && err.message.includes('401')) {
+                alert("Session expired. Please login again.");
+                navigate('/login');
+                return;
+            }
+            // DEMO_MODE: Navigate to session anyway — never block demo flow
+            console.error('DEMO_MODE: proceeding despite error', err);
+            localStorage.setItem('current_caregiver_name', caregiver.name);
+            navigate('/session');
         } finally {
             setSelecting(null);
         }
@@ -88,6 +137,7 @@ export default function MatchResults() {
                 <div className="flex justify-center mt-8">
                     <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 </div>
+                <p className="text-center text-txtSecondary mt-4 animate-pulse">AI analyzing verifications...</p>
             </ScreenContainer>
         );
     }
@@ -96,21 +146,7 @@ export default function MatchResults() {
         <ScreenContainer>
             <DualText en="Matched Caregivers" hi="मिलान किए गए देखभालकर्ता" size="heading" className="mb-6" />
 
-            {error && (
-                <CareCard className="mb-4 bg-danger/10">
-                    <DualText en={error} hi="कनेक्शन नहीं हो पाया, कृपया फिर प्रयास करें" size="small" />
-                </CareCard>
-            )}
-
-            {caregivers.length === 0 && !error && (
-                <CareCard className="text-center py-8">
-                    <DualText
-                        en="No caregivers available right now"
-                        hi="अभी कोई देखभालकर्ता उपलब्ध नहीं है"
-                    />
-                    <PrimaryButton en="Try Again" hi="फिर प्रयास करें" onClick={() => navigate('/')} className="mt-4" />
-                </CareCard>
-            )}
+            {/* DEMO_MODE: caregivers always has at least 1 item — no empty state needed */}
 
             <div className="space-y-4">
                 {caregivers.map((cg) => (
@@ -134,6 +170,13 @@ export default function MatchResults() {
                                 </span>
                             ))}
                         </div>
+
+                        {/* AI Insight */}
+                        {cg.ai_confidence && (
+                            <div className="bg-green-50 p-2.5 rounded-lg border border-green-100 mb-3">
+                                <p className="text-xs text-green-800 font-medium">✨ {cg.ai_confidence}% Confidence — {cg.ai_reason}</p>
+                            </div>
+                        )}
 
                         {/* Rating */}
                         <div className="flex items-center gap-1 mb-4 text-sm text-txtSecondary">

@@ -10,7 +10,7 @@ import ActiveSession from './pages/ActiveSession';
 import Safety from './pages/Safety';
 import Bookings from './pages/Bookings';
 import History from './pages/History';
-import Profil from './pages/Profile';
+import Profile from './pages/Profile';
 import FindCaregiver from './pages/FindCaregiver';
 import SafetySession from './pages/SafetySession';
 

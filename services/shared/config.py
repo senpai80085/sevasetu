@@ -30,7 +30,9 @@ class Config:
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
     
     # CORS
-    ALLOWED_ORIGINS: list = [
-        "http://localhost:3000",  # Civilian app
-        "http://localhost:3001",  # Caregiver app
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001"
     ]

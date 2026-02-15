@@ -29,6 +29,7 @@ export default function Login() {
 
             const data = await res.json();
             console.log('[DEV] OTP:', data.otp);
+            alert(`Your OTP is: ${data.otp}`);
             setStep('otp');
         } catch (err) {
             setError(err.message || 'Connection failed');

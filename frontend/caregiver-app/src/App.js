@@ -8,6 +8,7 @@ import TrustPassport from './pages/TrustPassport';
 import JobRequests from './pages/JobRequests';
 import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
+import BottomNav from './components/BottomNav';
 
 function App() {
     return (
@@ -18,46 +19,43 @@ function App() {
 
                     <Route path="/" element={
                         <ProtectedRoute>
-                            <nav className="p-4 bg-primary text-white flex justify-between items-center shadow-md">
-                                <h1 className="font-bold text-lg">SevaSetu Caregiver</h1>
-                                <button
-                                    onClick={() => require('./utils/auth').logout()}
-                                    className="text-sm bg-white/20 px-3 py-1 rounded"
-                                >
-                                    Logout
-                                </button>
-                            </nav>
                             <AssignedJobs />
+                            <BottomNav />
                         </ProtectedRoute>
                     } />
 
                     <Route path="/availability" element={
                         <ProtectedRoute>
                             <ToggleAvailability />
+                            <BottomNav />
                         </ProtectedRoute>
                     } />
 
                     <Route path="/register" element={
                         <ProtectedRoute>
                             <RegisterProfile />
+                            <BottomNav />
                         </ProtectedRoute>
                     } />
 
                     <Route path="/trust" element={
                         <ProtectedRoute>
                             <TrustPassport />
+                            <BottomNav />
                         </ProtectedRoute>
                     } />
 
                     <Route path="/jobs" element={
                         <ProtectedRoute>
                             <JobRequests />
+                            <BottomNav />
                         </ProtectedRoute>
                     } />
 
                     <Route path="/profile" element={
                         <ProtectedRoute>
                             <Profile />
+                            <BottomNav />
                         </ProtectedRoute>
                     } />
 
