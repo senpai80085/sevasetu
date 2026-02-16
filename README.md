@@ -1,144 +1,206 @@
-# SevaSetu - Caregiving Platform MVP
+# SevaSetu — AI Trust Infrastructure for Informal Caregivers
 
-A production-grade dual-entity caregiving platform with AI matching, blockchain reputation, and safety monitoring.
+## Tagline
+**Voice-based verification and trust scoring system that converts unorganized caregivers into digitally trusted healthcare workers.**
 
-## Architecture
+---
 
-### Services
-- **caregiver-api** (Port 8001): Caregiver registration, availability, job management
-- **civilian-api** (Port 8002): Care requests, matching, bookings, ratings
-- **ai-service** (Port 8003): ML-powered caregiver matching using scikit-learn
-- **blockchain-service**: Solidity smart contract for privacy-preserving ratings
-- **safety-service** (Port 8005): Anomaly detection and guardian live mode
+## Problem (Ground Reality)
 
-### Frontend
-- **civilian-app** (Port 3000): React app for care requests
-- **caregiver-app** (Port 3001): React dashboard for caregivers
+India’s home-care ecosystem runs largely on informal labor networks. Families depend on neighbors, word-of-mouth, or brokers to hire caregivers for elderly and post-hospital patients.
 
-## Tech Stack
+### Real Consequences
+- No verified skills or certification
+- Fake experience claims
+- Families fear negligence or abuse
+- Skilled workers remain unemployed due to lack of proof
+- Migrant children cannot arrange safe care remotely
 
-### Backend
-- Python FastAPI  
-- PostgreSQL + SQLAlchemy
-- scikit-learn (RandomForestRegressor)
-- Web3.py (Blockchain)
+> This is not a discovery problem.  
+> This is a **trust verification problem**.
 
-### Frontend
-- React 18
-- Fetch API for HTTP requests
+India has millions of capable caregivers — but zero scalable way to verify competence without formal education or paperwork.
 
-## Setup (Manual)
+---
 
-### Prerequisites
-- Python 3.9+
-- Node.js 16+
-- PostgreSQL
-- (Optional) Local blockchain node for smart contract
+## Why Existing Solutions Fail
 
-### Backend Setup
+| Current Method | Failure |
+|------|------|
+| Agencies | Exist only in metro cities |
+| ID/KYC verification | Proves identity, not skill |
+| Ratings | Appear after harm occurs |
+| Interviews | Subjective and inconsistent |
+| Certification courses | Expensive & inaccessible |
 
-1. Create PostgreSQL database:
-   ```sql
-   CREATE DATABASE sevasetu_db;
-   CREATE USER sevasetu_user WITH PASSWORD 'sevasetu_pass';
-   GRANT ALL PRIVILEGES ON DATABASE sevasetu_db TO sevasetu_user;
-   ```
+The majority of caregivers cannot prove skills because they are experiential workers, not certified workers.
 
-2. Install dependencies for each service:
-   ```bash
-   cd services/caregiver-api && pip install -r requirements.txt
-   cd services/civilian-api && pip install -r requirements.txt
-   cd services/ai-service && pip install -r requirements.txt
-   cd services/safety-service && pip install -r requirements.txt
-   ```
+Therefore traditional apps cannot solve this — they require documents that the workforce does not possess.
 
-3. Train AI model:
-   ```bash
-   cd services/ai-service/model
-   python train.py
-   ```
+---
 
-4. Start services:
-   ```bash
-   # Terminal 1
-   python services/caregiver-api/main.py
+## Our Core Insight
 
-   # Terminal 2
-   python services/civilian-api/main.py
+Caregiving ability can be inferred from **conversation, reasoning, and scenario responses**.
 
-   # Terminal 3
-   python services/ai-service/main.py
+Humans evaluate trust verbally — not through certificates.  
+SevaSetu replicates this process using AI.
 
-   # Terminal 4
-   python services/safety-service/main.py
-   ```
+---
 
-### Frontend Setup
+## Solution Overview
 
-1. Install and run civilian app:
-   ```bash
-   cd frontend/civilian-app
-   npm install
-   npm start
-   ```
+SevaSetu is a **voice-first AI capability assessment system** that evaluates caregiver competence through structured spoken interaction and generates a **Trust Passport**.
 
-2. Install and run caregiver app:
-   ```bash
-   cd frontend/caregiver-app
-   npm install
-   npm start
-   ```
+It transforms an undocumented worker into a digitally verifiable professional.
 
-## Testing
+---
 
-Run integration tests:
-```bash
-cd tests
-pytest integration/test_full_flow.py -v
-```
+## How It Works (System Flow)
 
-## API Endpoints
+1. Caregiver calls or opens app (no typing required)
+2. AI conducts spoken interview in native language
+3. Scenario-based questions simulate real care situations
+4. Model evaluates reasoning, safety awareness, empathy indicators
+5. System generates competency profile + risk score
+6. Families hire based on capability instead of claims
 
-### Caregiver API (8001)
-- `POST /caregiver/register` - Register new caregiver
-- `POST /caregiver/availability` - Update availability
-- `GET /caregiver/{id}` - Get caregiver profile
-- `GET /caregiver/jobs` - Get assigned jobs
+---
 
-### Civilian API (8002)
-- `POST /civilian/request-care` - Submit care request
-- `POST /civilian/match-caregivers` - Get AI-matched caregivers
-- `POST /civilian/confirm-booking` - Confirm booking
-- `POST /civilian/submit-rating` - Rate caregiver
+## Example Evaluation
 
-### AI Service (8003)
-- `POST /rank` - Rank caregivers by match score
+Instead of asking:
 
-### Safety Service (8005)
-- `POST/monitor/analyze` - Analyze monitoring data
-- `POST /guardian/session/start` - Start guardian session
-- `POST /guardian/session/end` - End guardian session
+> Do you know how to care for a stroke patient?
 
-## Key Features
+System asks:
 
-✅ **AI Matching**: RandomForestRegressor ranks caregivers by skill match, experience, ratings, and location  
-✅ **Trust Score**: Deterministic weighted formula (verification + ratings + experience - penalties)  
-✅ **Blockchain**: Privacy-preserving Solidity contract for immutable ratings  
-✅ **Safety Monitoring**: Threshold-based anomaly detection stub  
-✅ **Guardian Mode**: WebRTC session management for live monitoring  
-✅ **Minimal UI**: Functional React components with fetch API
+> If a patient suddenly stops responding while eating, what will you do first?
 
-## Project Structure
+The answer determines practical knowledge, not memorized theory.
 
-See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed folder layout.
+---
 
-## Notes
+## Key Innovation — AI Trust Engine
 
-- No authentication implemented (add JWT in production)
-- Blockchain requires external node (Ganache/Hardhat for testing)
-- WebRTC video streaming is P2P (backend only manages sessions)
-- AI model uses synthetic data (replace with historical data in production)
+### Trust Passport
+A portable, tamper-resistant profile containing:
 
-## License
+- Skill inference score
+- Safety awareness level
+- Experience authenticity probability
+- Communication clarity rating
+- Reliability indicators
 
-MIT
+This acts as a substitute for certificates in informal sectors.
+
+---
+
+## Bharat-First Design
+
+| Constraint | Implementation |
+|------|------|
+| Low literacy | Fully voice interface |
+| Regional languages | Multilingual speech processing |
+| Low internet | Offline-first interview buffering |
+| No documents | Capability inference instead of paperwork |
+| Trust gap | Behavioral evaluation instead of ratings |
+| Low cost phones | Runs on entry-level Android devices |
+
+---
+
+## Why AI Is Necessary
+
+This system requires AI because it performs tasks impossible with rules:
+
+- Interpreting open-ended spoken responses
+- Inferring competence from explanation patterns
+- Detecting uncertainty and unsafe reasoning
+- Differentiating memorized vs experiential answers
+
+> A database cannot evaluate judgment.  
+> A form cannot evaluate responsibility.
+
+This is fundamentally a **cognitive assessment problem**.
+
+---
+
+## Target Users
+
+### Primary
+Urban migrant families arranging care remotely for elderly parents in Tier-2/3 towns
+
+### Secondary
+Informal caregivers seeking employment without certificates
+
+### Institutional
+Hospitals discharging patients needing home monitoring support
+
+---
+
+## Measurable Impact
+
+| Metric | Expected Change |
+|------|------|
+| Hiring time | 3 days → 20 minutes |
+| Wrong hire probability | Significant reduction |
+| Worker employability | Increased without training cost |
+| Family confidence | Immediate trust before first visit |
+| Post-discharge complications | Reduced due to better care matching |
+
+---
+
+## Deployment Model
+
+- Mobile app + phone call interface
+- No training required for caregivers
+- Works via guided conversation
+- Can integrate with hospitals, NGOs, or local governance
+
+**Cost per verification:** minimal (single automated interview)
+
+---
+
+## Societal Impact
+
+SevaSetu creates a new category of digital identity:
+
+> **Skill identity for informal workers**
+
+Potential sectors after caregiving:
+- Domestic helpers
+- Patient attendants
+- Community health workers
+- Rural service providers
+
+This converts unorganized labor into trusted workforce infrastructure.
+
+---
+
+## Technology Stack (Prototype)
+
+- Speech Recognition
+- Language Understanding Model
+- Reasoning Assessment Engine
+- Trust Scoring Algorithm
+- Multilingual Text-to-Speech
+- Lightweight mobile interface
+
+---
+
+## Future Expansion
+
+- Government health worker onboarding
+- Insurance validation support
+- Hospital discharge integration
+- Nationwide informal workforce registry
+
+---
+
+## Conclusion
+
+SevaSetu is not a booking platform.
+
+It is a **foundational trust layer** that allows India’s informal care economy to function safely at scale by replacing documents with verified capability.
+
+By converting human conversation into verifiable credibility, the system enables safe hiring where formal certification is absent.
